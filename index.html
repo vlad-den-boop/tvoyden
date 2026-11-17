@@ -21,15 +21,15 @@
     padding:max(18px, env(safe-area-inset-top)) 16px 28px;
     -webkit-tap-highlight-color:transparent;
   }
-  .wrap { max-width:520px; margin:0 auto; position:relative; z-index:1; }
-  /* живое небо: канвас и видео за всем контентом */
-  #sky {
-    position:fixed; top:0; left:0; width:100%; height:100%;
-    z-index:0; pointer-events:none;
-  }
+  .wrap { max-width:520px; margin:0 auto; position:relative; z-index:2; }
+  /* живое небо: видео-фон + мерцающие звёзды поверх него */
   #skyVideo {
     position:fixed; top:0; left:0; width:100%; height:100%;
     object-fit:cover; z-index:0; pointer-events:none; display:none;
+  }
+  #sky {
+    position:fixed; top:0; left:0; width:100%; height:100%;
+    z-index:1; pointer-events:none;
   }
   header { text-align:center; margin-bottom:6px; }
   header .logo { font-size:2.6rem; line-height:1; }
@@ -1320,17 +1320,26 @@ document.getElementById('saveSettings').addEventListener('click', function () {
   var ctx = cv.getContext('2d');
   var reduced = false;
   try { reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) {}
-  var stopped = false; // станет true, если заработает видео-фон
-  // живое видео-небо: если файл доступен — он главный фон, канвас выключаем
+  var stopped = false; // станет true, если канвас больше не нужен
+  var videoOn = false; // видео играет → солнце и планеты не рисуем (они в видео)
+  // живое видео-небо: звёзды остаются поверх видео мерцать
   var vid = document.getElementById('skyVideo');
   if (vid) {
     vid.addEventListener('canplay', function () {
       vid.style.display = '';
-      cv.style.display = 'none';
-      stopped = true;
+      videoOn = true;
       var p = vid.play();
       if (p && p.catch) p.catch(function () {});
     }, { once: true });
+    // на iPhone в режиме энергосбережения видео стартует только от касания
+    var tryPlay = function () {
+      if (vid.paused && vid.style.display !== 'none') {
+        var p = vid.play();
+        if (p && p.catch) p.catch(function () {});
+      }
+    };
+    document.addEventListener('touchend', tryPlay, { passive: true });
+    document.addEventListener('click', tryPlay);
   }
   var W = 0, H = 0, stars = [], sun = { x: 0, y: 70 };
   var PLANETS = [
@@ -1380,6 +1389,8 @@ document.getElementById('saveSettings').addEventListener('click', function () {
       ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, 6.283); ctx.fill();
     }
     ctx.globalAlpha = 1;
+    // солнце и планеты — только когда видео не играет (в видео они уже есть)
+    if (!videoOn) {
     // солнце со свечением
     glow(sun.x, sun.y, 30, 'rgba(245,194,107,0.16)');
     glow(sun.x, sun.y, 14, 'rgba(245,194,107,0.30)');
@@ -1406,6 +1417,7 @@ document.getElementById('saveSettings').addEventListener('click', function () {
         ctx.stroke();
       }
     }
+    } // конец «если видео не играет»
     // редкая комета с мерцающим хвостом
     if (!comet.active && t > comet.next) {
       var fromLeft = Math.random() < 0.5;
