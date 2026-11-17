@@ -42,7 +42,9 @@
     border:1px solid rgba(245,194,107,.35);
   }
   .card {
-    background:rgba(255,255,255,.055); border:1px solid rgba(255,255,255,.09);
+    background:rgba(18,16,31,.38);
+    backdrop-filter:blur(4px); -webkit-backdrop-filter:blur(4px);
+    border:1px solid rgba(255,255,255,.10);
     border-radius:20px; padding:18px 18px 16px; margin-top:16px;
   }
   .card h2 { font-size:.82rem; text-transform:uppercase; letter-spacing:1.6px; color:#c9bfdf; margin-bottom:12px; font-weight:600; }
@@ -88,6 +90,9 @@
   #settings label { display:block; color:#b7aed0; font-size:.88rem; margin:14px 0 6px; }
   #settings input, #settings select { width:100%; color-scheme:dark; }
   .hidden { display:none !important; }
+  /* заставка: при открытии сначала чистое небо, потом карточки выплывают */
+  #app { transition:opacity 1s ease; }
+  body.intro #app { opacity:0; pointer-events:none; }
   details.card summary {
     cursor:pointer; font-size:.82rem; text-transform:uppercase; letter-spacing:1.6px;
     color:#c9bfdf; font-weight:600; list-style:none;
@@ -1483,6 +1488,12 @@ document.getElementById('shareApp').addEventListener('click', function () {
 
 /* ---------- старт ---------- */
 render();
+
+// киномомент: 2,5 секунды любуемся небом, затем карточки выплывают
+if (state) {
+  document.body.classList.add('intro');
+  setTimeout(function () { document.body.classList.remove('intro'); }, 2500);
+}
 
 // офлайн-режим: работает, когда приложение открыто с сайта (https)
 if ('serviceWorker' in navigator && location.protocol.indexOf('http') === 0) {
