@@ -78,6 +78,28 @@
   #settings label { display:block; color:#b7aed0; font-size:.88rem; margin:14px 0 6px; }
   #settings input, #settings select { width:100%; color-scheme:dark; }
   .hidden { display:none !important; }
+  details.card summary {
+    cursor:pointer; font-size:.82rem; text-transform:uppercase; letter-spacing:1.6px;
+    color:#c9bfdf; font-weight:600; list-style:none;
+  }
+  details.card summary::-webkit-details-marker { display:none; }
+  details.card summary::before { content:'▸ '; color:#f5c26b; }
+  details.card[open] summary::before { content:'▾ '; }
+  details.card[open] summary { margin-bottom:12px; }
+  table { width:100%; border-collapse:collapse; margin-top:10px; }
+  td { padding:5px 4px; font-size:.92rem; border-top:1px solid rgba(255,255,255,.07); }
+  td:first-child { color:#f5c26b; white-space:nowrap; }
+  td:nth-child(2), td:nth-child(3) { color:#efe9f8; }
+  .chips { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:4px; }
+  .chip {
+    padding:8px 14px; border-radius:999px; font-size:.9rem; cursor:pointer;
+    border:1px solid rgba(255,255,255,.16); background:rgba(255,255,255,.07); color:#e8e2f4;
+    user-select:none; -webkit-user-select:none;
+  }
+  .chip.on {
+    background:rgba(245,194,107,.18); border-color:rgba(245,194,107,.5);
+    color:#f5c26b; font-weight:600;
+  }
 </style>
 </head>
 <body>
@@ -97,6 +119,29 @@
     <div class="note" id="natalNote"></div>
   </section>
 
+  <section class="card" id="houseCard">
+    <h2>🗺 Дома дня</h2>
+    <div id="houseLines"></div>
+  </section>
+
+  <section class="card">
+    <h2>🔭 Что впереди</h2>
+    <div class="moon-line" id="fwd1"></div>
+    <div class="moon-line" id="fwd2" style="margin-bottom:0"></div>
+  </section>
+
+  <details class="card">
+    <summary>🪐 Карта дня — точные положения планет</summary>
+    <table id="dayTable"></table>
+    <div class="note">Положения планет на сейчас, по твоему времени. R — планета ретроградная (идёт назад). Дом — сфера твоей жизни, через которую она проходит.</div>
+  </details>
+
+  <details class="card">
+    <summary>🎂 Твоя карта рождения</summary>
+    <table id="natalTable"></table>
+    <div class="note" id="ascLine"></div>
+  </details>
+
   <section class="card">
     <h2>💰 Деньги и доход</h2>
     <ul class="tips" id="moneyList"></ul>
@@ -112,6 +157,9 @@
     <h2>🌙 Фон дня</h2>
     <div class="moon-line" id="moonLine"></div>
     <div class="phase-line" id="phaseLine"></div>
+    <div class="phase-line" id="lunarLine" style="margin-top:8px"></div>
+    <div class="phase-line" id="weekdayLine" style="margin-top:8px"></div>
+    <div class="phase-line" id="numberLine" style="margin-top:8px"></div>
   </section>
 
   <section class="card">
@@ -135,27 +183,36 @@
     <div class="hint" id="gratHint"></div>
   </section>
 
+  <details class="card">
+    <summary>ℹ️ О приложении</summary>
+    <div class="note">«Твой день» — личный гороскоп, который считается прямо на устройстве: положения планет вычисляет астрономический движок по дате, времени и месту рождения. Интерпретации — дружеские советы, а не точная наука: решения всегда за тобой.<br><br>Твои данные никуда не отправляются и хранятся только на этом устройстве. Версия 2.1</div>
+  </details>
+
   <footer>
     Всё считается на устройстве, интернет не нужен.<br>
-    <a id="openSettings">данные рождения</a>
+    <a id="openSettings">данные рождения</a><br>
+    <span style="color:#6f6790">обновление 14.11 — фразы под твои цели · версия для магазинов</span>
   </footer>
 </main>
 
 <div id="settings" class="wrap hidden">
   <header>
     <div class="logo">🎂</div>
-    <h1>Данные рождения</h1>
+    <h1 id="setTitle">Данные рождения</h1>
   </header>
   <section class="card">
-    <label>Имя</label>
-    <input type="text" id="fName">
+    <label>Имя (обязательно)</label>
+    <input type="text" id="fName" placeholder="Твоё имя">
+    <div class="note" id="nameHint" style="display:none;color:#ff9d9d">Напиши имя — оно будет видно на главном экране рядом с датой.</div>
     <label>Дата рождения</label>
     <input type="date" id="fDate">
-    <label>Время рождения (местное)</label>
+    <label>Время рождения (местное) — если знаешь</label>
     <input type="time" id="fTime">
     <label>Город рождения</label>
     <select id="fCity"></select>
-    <div class="note">Время — местное. Для городов СССР до 1981 года пояс учтён без «летнего времени» (как и было на самом деле). Если города в списке нет — скажи Коде, он добавит.</div>
+    <label>Что тебе важно — фразы будут подбираться под твои цели</label>
+    <div class="chips" id="wishChips"></div>
+    <div class="note">Время — местное. Если время рождения неизвестно — ничего страшного: гороскоп будет работать, а дома и асцендент просто не показываются. Если твоего города нет в списке — выбери ближайший крупный.</div>
     <div class="row" style="justify-content:flex-start">
       <button id="saveSettings">Сохранить</button>
       <button class="ghost" id="closeSettings">Назад</button>
@@ -469,11 +526,11 @@ function initAstro(Astronomy) {
   }
 
   // ---------- натальная карта ----------
-  // profile: { date:'ГГГГ-ММ-ДД', time:'ЧЧ:ММ', lat, lon, tz }
+  // profile: { date:'ГГГГ-ММ-ДД', time:'ЧЧ:ММ' | null, lat, lon, tz }
   function natalInstant(p) {
-    var d = p.date.split('-'), t = p.time.split(':');
-    // местное время = UTC + tz (для Одессы 1973 года tz=3, «летнего времени» тогда не было)
-    return new Date(Date.UTC(+d[0], +d[1] - 1, +d[2], +t[0] - p.tz, +t[1]));
+    var d = p.date.split('-');
+    var t = p.time ? p.time.split(':') : ['12', '0']; // без времени — полдень
+    return new Date(Date.UTC(+d[0], +d[1] - 1, +d[2], +t[0] - p.tz, +(t[1] || 0)));
   }
   function natalChart(p) {
     var inst = natalInstant(p);
@@ -485,6 +542,15 @@ function initAstro(Astronomy) {
         retro: (b.key !== 'Sun' && b.key !== 'Moon') && isRetro(b.key, inst)
       });
     });
+    if (!p.time) { out.ascLon = null; return out; } // без времени дома не считаем
+    // асцендент (формула проверена на контрольном расчёте)
+    var gast = Astronomy.SiderealTime(inst);
+    var ramc = (gast * 15 + p.lon) % 360;
+    var eps = 23.43666 * Math.PI / 180;
+    var phi = p.lat * Math.PI / 180, ramcR = ramc * Math.PI / 180;
+    var asc = Math.atan2(Math.cos(ramcR), -(Math.sin(ramcR) * Math.cos(eps) + Math.tan(phi) * Math.sin(eps))) * 180 / Math.PI;
+    if (asc < 0) asc += 360;
+    out.ascLon = asc;
     return out;
   }
 
@@ -518,6 +584,89 @@ function initAstro(Astronomy) {
   };
   var OPEN_HARM = ['Сегодня планеты играют за тебя', 'День за тебя', 'Расклад хороший', 'Фон дня — твой союзник'];
   var OPEN_TENS = ['Сегодня планеты проверяют на прочность', 'День с характером', 'Сегодня день-экзаменатор', 'Фон дня требует внимания'];
+
+  // День недели (0=вс ... 6=сб)
+  var WEEKDAY_LINE = [
+    'Воскресенье — день тишины и перезагрузки: планировать можно, суетиться — нет.',
+    'Понедельник — день старта: одно начатое дело задаст тон всей неделе.',
+    'Вторник — день напора: хорошо идти туда, где вчера не решился.',
+    'Среда — день связей: звонки, письма и договорённости идут легче обычного.',
+    'Четверг — день размаха: можно браться за большое, силы на него есть.',
+    'Пятница — день сбора плодов: доделывай и подводи итоги, новое — не сейчас.',
+    'Суббота — день рук и тела: движение, порядок в доме, творчество без спешки.'
+  ];
+
+  // Лунный день (1–30, берём совет по номеру с циклом из 15)
+  var LUNAR_TIPS = [
+    'день замысла: загадай цель — луна поможет её нести',
+    'день контактов: говори с людьми, они сегодня — твой ресурс',
+    'день решений: выбирай смелее, от лишнего отказывайся',
+    'день рутинных дел: наведи порядок в мелочах',
+    'день собственности: пересмотри, что твоё по-настоящему',
+    'день прощения: отпусти старое — освободишь силы',
+    'день слова: говори меньше, но весомее',
+    'день огня: энергия кипит — направь её в дело',
+    'день честности: скажи себе правду, с ней легче идти',
+    'день семьи: тепло близких сегодня лечит',
+    'день внимательности: читай между строк',
+    'день терпения: медленный шаг сегодня — самый быстрый',
+    'день заботы: помоги кому-то — вернётся сторицей',
+    'день работы с информацией: учись, читай, разбирайся',
+    'день завершения: закрой хвосты, чтобы начать чисто'
+  ];
+
+  // Число дня (цифровая сумма даты)
+  var NUM_TIPS = [
+    'день начала: делай первый шаг, даже маленький',
+    'день пары: важные дела — вдвоём, вместе получится',
+    'день творчества: добавь в дело красок и игры',
+    'день фундамента: строй основу, она выдержит потом',
+    'день движения: перемены сегодня на твоей стороне',
+    'день заботы: семья и дом — часть успеха, не помеха',
+    'день ума: думай, считай, проверяй — и выиграешь',
+    'день силы: бери ответственность, потянешь',
+    'день итогов: завершай и отпускай — придёт новое'
+  ];
+
+  // Ловец заказов: задачи на будни (активный поиск)
+  var TASKS_WORK = [
+    'Отправь 3 отклика на заказы (FL.ru, Kwork, Profi) — до обеда, пока день свежий.',
+    'Напиши 5 прошлым клиентам: «есть новая работа, взгляни» — старые контакты дорогие.',
+    'Сделай пост с прямым предложением: «песня на заказ — от идеи до готового трека».',
+    'Запиши 30-секундное видео, как рождается песня, — выложи в VK.',
+    'Обнови профиль на площадках: свежий пример работы + понятная цена.',
+    'Напиши 2 брендам или магазинам: предложить джингл, клип или стих для акции.',
+    'Собери список из 5 тем, на которые люди заказывают песни, — выбери одну и набросай.',
+    'Подними цену на 10% для новых клиентов — проверка смелости, которая окупается.',
+    'Разошли предложение 10 знакомым: «делаю песни и клипы на заказ, скину пример».',
+    'Опубликуй в группу стих и в конце — одну строчку: «могу написать такую для вас».',
+    'Найди 3 новых площадки для откликов и зарегистрируйся хотя бы на одной.',
+    'Позвони или напиши одному «тёплому» клиенту, который давно молчал.',
+    'Собери мини-портфолио из 3 лучших работ — одна ссылка, которую не стыдно слать.',
+    'Запиши ответ на частый вопрос клиентов — будет готовый текст для переписки.',
+    'Выдели час «охоты»: только отклики и письма, без отвлечений.'
+  ];
+  // Ловец заказов: задачи на выходные (творчество и база)
+  var TASKS_WEEKEND = [
+    'Напиши новый стих или куплет с утра — в понедельник он станет постом.',
+    'Доведи одну песню до финальной версии — портфолио растёт.',
+    'Собери мини-альбом из готовых треков — это готовый товар для продаж.',
+    'Запиши видео с процессом творчества — такие ролики находят клиентов сами.',
+    'Пройдись по своим работам и выбери 3 лучшие — обнови их показ в профиле.',
+    'Придумай 5 названий для своих услуг — понятные названия продают лучше.',
+    'Съешь лягушку планирования: распиши свою неделю по дням на 30 минут вперед.',
+    'Отдохни по-настоящему: выйдешь из людей — выйдешь из вдохновения.'
+  ];
+  var WHY_HARM = [
+    'фон дня играет за тебя — отклик будет услышан',
+    'день лёгкий: люди сегодня настроены отвечать «да»',
+    'энергия поддерживает: сделаешь быстрее и лучше обычного'
+  ];
+  var WHY_TENS = [
+    'день непростой — но одно действие сегодня стоит трёх в спокойный',
+    'планеты жмут: именно поэтому малый шаг сегодня — уже победа',
+    'фон с острыми углами: работай коротко и точно, без размаха'
+  ];
 
   // Советы: деньги (10 планет × 2 полярности)
   var MONEY = {
@@ -579,11 +728,41 @@ function initAstro(Astronomy) {
   }
   var ORB = { conj:7, sextile:4, square:5, trine:5, opp:6 };
 
+  // Дома (целые знаки): значения сфер жизни
+  var HOUSE_MEAN = [
+    'ты сам, тело и первые впечатления',
+    'деньги, ресурсы и самооценка',
+    'общение, бумаги и короткие дороги',
+    'дом, семья и внутренняя опора',
+    'творчество, романтика и игра',
+    'работа, здоровье и порядок',
+    'партнёры, клиенты и договоры',
+    'глубины, чужие деньги и трансформации',
+    'дальние дороги, учёба и большие идеи',
+    'карьера, статус и главные цели',
+    'друзья, единомышленники и планы',
+    'отдых, тишина и внутренний мир'
+  ];
+  // «быстрые» планеты — меняются часто, дают разнообразие
+  var FAST = { Moon:1, Sun:1, Mercury:1, Venus:1, Mars:1 };
+
   function computeDay(profile, now) {
     now = now || new Date();
     var nat = natalChart(profile);
+    var ascSign = nat.ascLon == null ? null : Math.floor(nat.ascLon / 30);
+    nat.points.forEach(function (n) {
+      n.deg = n.lon % 30;
+      n.house = ascSign == null ? null : ((Math.floor(n.lon / 30) - ascSign + 12) % 12) + 1;
+    });
     var transits = BODIES.map(function (b) {
-      return { key: b.key, name: b.name, lon: lonOf(b.key, now) };
+      var lon = lonOf(b.key, now);
+      var signIdx = Math.floor(lon / 30);
+      return {
+        key: b.key, name: b.name, lon: lon,
+        signIdx: signIdx, deg: lon % 30,
+        retro: (b.key !== 'Sun' && b.key !== 'Moon') && isRetro(b.key, now),
+        house: ascSign == null ? null : ((signIdx - ascSign + 12) % 12) + 1
+      };
     });
     var aspects = [];
     transits.forEach(function (t) {
@@ -641,25 +820,27 @@ function initAstro(Astronomy) {
 
   function advice(day) {
     var out = {};
+    var dayNum = Math.floor(day.now.getTime() / 86400e3); // номер дня — «рулетка» разнообразия
 
-    // Главное: характер дня по самому близому аспекту + разнообразие формулировки по дате
-    var main = strongest(day);
+    // Главное: крутим рулетку из трёх самых сильных влияний дня
+    var top = day.aspects.slice(0, Math.min(3, day.aspects.length));
+    var main = top.length ? top[dayNum % top.length] : null;
     if (main) {
-      var seed = +day.now.toISOString().slice(8, 10); // день месяца — чтобы формулировки чередовались
       var opens = main.pol === 'harm' ? OPEN_HARM : OPEN_TENS;
-      var tip = MAIN[main.t][main.pol];
-      out.mainLine = opens[seed % opens.length] + ' — ' + tip + '.';
+      var tipA = MAIN[main.t][main.pol];
+      out.mainLine = opens[(dayNum * 7 + 3) % opens.length] + ' — ' + tipA + '.';
     } else {
       out.mainLine = 'Сегодня резких влияний мало — день ровный, распорядись им сам.';
     }
     out.energy = day.energy;
 
-    // Деньги: самый близкий аспект с «денежной» планетой (транзит или натал)
-    var moneyA = strongest(day, function (a) { return MONEY_SET[a.t] || MONEY_SET[a.n]; });
+    // Деньги: крутим между двумя денежными аспектами
+    var moneyTop = day.aspects.filter(function (a) { return MONEY_SET[a.t] || MONEY_SET[a.n]; }).slice(0, 2);
+    var moneyA = moneyTop.length ? moneyTop[dayNum % moneyTop.length] : null;
     var money = [];
     if (moneyA) {
-      var tip = MONEY[moneyA.t][moneyA.pol];
-      money.push(tip.charAt(0).toUpperCase() + tip.slice(1) + '.');
+      var tipM = MONEY[moneyA.t][moneyA.pol];
+      money.push(tipM.charAt(0).toUpperCase() + tipM.slice(1) + '.');
     } else {
       money.push('По луне сегодня: ' + PHASE_LINE[phaseIndex(day.moon.phaseDeg)] + '.');
     }
@@ -667,12 +848,13 @@ function initAstro(Astronomy) {
     if (day.retros.indexOf('Mercury') >= 0) money.push('Платежи и счета перепроверь дважды: в цифрах сегодня легко ошибиться.');
     out.money = money;
 
-    // Стресс: самый близкий аспект с «чувствительной» натальной планетой
-    var stressA = strongest(day, function (a) { return STRESS_SET[a.n] || a.pol === 'tens'; });
+    // Стресс: крутим между двумя «чувствительными» влияниями
+    var calmTop = day.aspects.filter(function (a) { return STRESS_SET[a.n] || a.pol === 'tens'; }).slice(0, 2);
+    var stressA = calmTop.length ? calmTop[(dayNum + 1) % calmTop.length] : null;
     var calm = [];
     if (stressA) {
-      var tip2 = CALM[stressA.t][stressA.pol];
-      calm.push(tip2.charAt(0).toUpperCase() + tip2.slice(1) + '.');
+      var tipC = CALM[stressA.t][stressA.pol];
+      calm.push(tipC.charAt(0).toUpperCase() + tipC.slice(1) + '.');
     }
     if (day.energy.emoji === '🛡') calm.push('Вечером — минимум новостей, вода, тишина и ранний сон: так день не унесёт силы.');
     if (calm.length === 0) calm.push('Особых напряжений нет: потрать вечер на то, что наполняет — людей, музыку, любимое дело.');
@@ -682,11 +864,42 @@ function initAstro(Astronomy) {
       ' — ' + MOON_LINE[day.moon.signIdx] + '.';
     out.phaseLine = '🌙 ' + PHASE_LINE[phaseIndex(day.moon.phaseDeg)].charAt(0).toUpperCase() +
       PHASE_LINE[phaseIndex(day.moon.phaseDeg)].slice(1) + '.';
+
+    // Лунный день (от новолуния до новолуния, 1–30)
+    var ld = Math.floor(day.moon.phaseDeg / 12) + 1;
+    out.lunarLine = '🕯 Лунный день ' + ld + ': ' + LUNAR_TIPS[(ld - 1) % LUNAR_TIPS.length] + '.';
+
+    // День недели и число дня
+    out.weekdayLine = '📅 ' + WEEKDAY_LINE[day.now.getDay()];
+    var ds = ('' + day.now.getDate() + (day.now.getMonth() + 1) + day.now.getFullYear());
+    var num = 0;
+    for (var i = 0; i < ds.length; i++) num += +ds[i];
+    while (num > 9) {
+      num = ('' + num).split('').reduce(function (a, b) { return a + +b; }, 0);
+    }
+    out.numberLine = '🔢 Число дня ' + num + ': ' + NUM_TIPS[num - 1] + '.';
+
     out.retroNote = day.retros.length
       ? 'Ретроградные сегодня: ' + day.retros.map(function (k) {
           return BODIES.filter(function (b) { return b.key === k; })[0].name;
         }).join(', ') + '.'
       : '';
+
+    // ---------- Дома дня ----------
+    // Луна всегда в фокусе (меняется каждые ~2,5 дня) + одна планета по рулетке дней
+    out.houseLines = [];
+    if (day.natal.ascLon != null) {
+      var focus = [];
+      var moonT = null;
+      day.transits.forEach(function (t) { if (t.key === 'Moon') moonT = t; });
+      if (moonT) focus.push(moonT);
+      var pool = day.transits.filter(function (t) { return FAST[t.key] && t.key !== 'Moon'; });
+      if (pool.length) focus.push(pool[dayNum % pool.length]);
+      out.houseLines = focus.map(function (t) {
+        return '🪐 ' + t.name + (t.retro ? ' (R)' : '') + ' идёт по твоему ' + t.house + '-му дому — ' +
+          HOUSE_MEAN[t.house - 1] + '.';
+      });
+    }
 
     // тема для мотивационных фраз: от энергии дня
     out.phraseTheme = day.score >= 0.25 ? 'work'
@@ -724,7 +937,33 @@ var CITIES = [
   { n:'Днепр', lat:48.4647, lon:35.0462, tz:3 },
   { n:'Запорожье', lat:47.8388, lon:35.1396, tz:3 },
   { n:'Воронеж', lat:51.6720, lon:39.1843, tz:3 },
-  { n:'Курск', lat:51.7373, lon:36.1874, tz:3 }
+  { n:'Курск', lat:51.7373, lon:36.1874, tz:3 },
+  { n:'Казань', lat:55.7963, lon:49.1088, tz:3 },
+  { n:'Екатеринбург', lat:56.8389, lon:60.6057, tz:5 },
+  { n:'Новосибирск', lat:55.0084, lon:82.9357, tz:7 },
+  { n:'Челябинск', lat:55.1644, lon:61.4368, tz:5 },
+  { n:'Самара', lat:53.1959, lon:50.1002, tz:4 },
+  { n:'Омск', lat:54.9885, lon:73.3248, tz:6 },
+  { n:'Ростов-на-Дону', lat:47.2225, lon:39.7188, tz:3 },
+  { n:'Уфа', lat:54.7388, lon:55.9721, tz:5 },
+  { n:'Краснодар', lat:45.0355, lon:38.9753, tz:3 },
+  { n:'Волгоград', lat:48.7080, lon:44.5133, tz:3 },
+  { n:'Пермь', lat:58.0105, lon:56.2502, tz:5 },
+  { n:'Сочи', lat:43.5855, lon:39.7231, tz:3 },
+  { n:'Симферополь', lat:44.9521, lon:34.1024, tz:3 },
+  { n:'Николаев', lat:46.9750, lon:31.9946, tz:3 },
+  { n:'Полтава', lat:49.5883, lon:34.5514, tz:3 },
+  { n:'Винница', lat:49.2331, lon:28.4682, tz:3 },
+  { n:'Львов', lat:49.8397, lon:24.0297, tz:3 },
+  { n:'Минск', lat:53.9006, lon:27.5590, tz:3 },
+  { n:'Алматы', lat:43.2220, lon:76.8512, tz:6 },
+  { n:'Астана', lat:51.1694, lon:71.4491, tz:5 },
+  { n:'Ташкент', lat:41.2995, lon:69.2401, tz:5 },
+  { n:'Баку', lat:40.4093, lon:49.8671, tz:4 },
+  { n:'Ереван', lat:40.1792, lon:44.4991, tz:4 },
+  { n:'Тбилиси', lat:41.7151, lon:44.8271, tz:4 },
+  { n:'Рига', lat:56.9496, lon:24.1052, tz:3 },
+  { n:'Кишинёв', lat:47.0105, lon:28.8638, tz:3 }
 ];
 
 var QUOTE_THEMES = {
@@ -788,8 +1027,6 @@ var GRAT_EVENING = {
   hint:'Лёжа в постели, в спокойном состоянии. Можно повторить три раза.'
 };
 
-var DEFAULT_PROFILE = { name:'Влад', date:'1973-08-09', time:'21:00', city:'Одесса', lat:46.4776, lon:30.7326, tz:3 };
-
 /* ---------- состояние ---------- */
 
 function loadState() {
@@ -799,7 +1036,36 @@ function loadState() {
 function saveStateObj(st) {
   try { localStorage.setItem('tvoyDen2', JSON.stringify(st)); } catch (e) {}
 }
-var state = loadState() || { profile: DEFAULT_PROFILE, interval: 30, day: '', count: 0 };
+// null → первый запуск: показываем приветствие с данными рождения
+var state = loadState();
+
+/* ---------- цели пользователя (подбор фраз) ---------- */
+
+var WISHES = [
+  { key:'money',  label:'Деньги и успех',       theme:'work' },
+  { key:'love',   label:'Любовь и люди',        theme:'love' },
+  { key:'calm',   label:'Спокойствие',          theme:'calm' },
+  { key:'mood',   label:'Настрой и уверенность', theme:'mood' },
+  { key:'growth', label:'Рост и новые цели',    theme:'growth' }
+];
+var selWishes = []; // временный выбор на экране настроек
+
+function renderWishChips() {
+  var box = document.getElementById('wishChips');
+  box.innerHTML = '';
+  WISHES.forEach(function (w) {
+    var el = document.createElement('span');
+    el.className = 'chip' + (selWishes.indexOf(w.key) >= 0 ? ' on' : '');
+    el.textContent = w.label;
+    el.addEventListener('click', function () {
+      var i = selWishes.indexOf(w.key);
+      if (i >= 0) selWishes.splice(i, 1);
+      else selWishes.push(w.key);
+      el.className = 'chip' + (selWishes.indexOf(w.key) >= 0 ? ' on' : '');
+    });
+    box.appendChild(el);
+  });
+}
 
 var astro = initAstro(Astronomy);
 var appEl = document.getElementById('app');
@@ -822,7 +1088,19 @@ function todayKey() {
 }
 
 function render() {
+  // первый запуск: приветствие вместо гороскопа
+  if (!state) {
+    appEl.classList.add('hidden');
+    setEl.classList.remove('hidden');
+    document.getElementById('setTitle').textContent = 'Добро пожаловать';
+    document.getElementById('saveSettings').textContent = 'Начать';
+    document.getElementById('closeSettings').style.display = 'none';
+    selWishes = [];
+    renderWishChips();
+    return;
+  }
   var p = state.profile;
+  var hasTime = !!p.time;
   var now = new Date();
   document.getElementById('dateLine').textContent =
     now.toLocaleDateString('ru-RU', { weekday:'long', day:'numeric', month:'long' });
@@ -830,7 +1108,6 @@ function render() {
   var day = astro.computeDay(p, now);
   var adv = astro.advice(day);
   var natal = astro.natalChart(p);
-  var sunSign = astro.SIGNS[Math.floor(natal.points[0].lon / 30)];
 
   document.getElementById('whoChip').textContent =
     astro.SIGN_EMOJI[Math.floor(natal.points[0].lon / 30)] + ' ' + p.name + ' · ' + p.date.split('-').reverse().join('.');
@@ -838,13 +1115,60 @@ function render() {
   document.getElementById('mainLine').textContent = adv.mainLine;
   document.getElementById('natalNote').textContent =
     'рассчитано по карте рождения: ' + p.date.split('-').reverse().join('.') +
-    ', ' + p.time + ', ' + p.city;
+    (hasTime ? ', ' + p.time : '') + ', ' + p.city;
 
   fillList('moneyList', adv.money);
   fillList('calmList', adv.calm);
   document.getElementById('retroNote').textContent = adv.retroNote;
   document.getElementById('moonLine').textContent = adv.moonLine;
   document.getElementById('phaseLine').textContent = adv.phaseLine;
+  document.getElementById('lunarLine').textContent = adv.lunarLine;
+  document.getElementById('weekdayLine').textContent = adv.weekdayLine;
+  document.getElementById('numberLine').textContent = adv.numberLine;
+
+  // Дома дня (только если известно время рождения)
+  document.getElementById('houseCard').style.display = hasTime ? '' : 'none';
+  var hl = document.getElementById('houseLines');
+  hl.innerHTML = '';
+  adv.houseLines.forEach(function (s) {
+    var d = document.createElement('div');
+    d.className = 'moon-line';
+    d.style.marginBottom = '8px';
+    d.textContent = s;
+    hl.appendChild(d);
+  });
+
+  // Карта дня (таблица)
+  var dt = document.getElementById('dayTable');
+  dt.innerHTML = day.transits.map(function (t) {
+    return '<tr><td>' + t.name + (t.retro ? ' R' : '') + '</td><td>' +
+      astro.SIGNS[t.signIdx] + ' ' + t.deg.toFixed(1) + '°</td><td>' +
+      (t.house ? t.house + '-й дом' : '') + '</td></tr>';
+  }).join('');
+
+  // Натальная карта (один раз на профиль)
+  var nt = document.getElementById('natalTable');
+  nt.innerHTML = day.natal.points.map(function (n) {
+    return '<tr><td>' + n.name + (n.retro ? ' R' : '') + '</td><td>' +
+      astro.SIGNS[Math.floor(n.lon / 30)] + ' ' + n.deg.toFixed(1) + '°</td><td>' +
+      (n.house ? n.house + '-й дом' : '') + '</td></tr>';
+  }).join('');
+  document.getElementById('ascLine').textContent = hasTime
+    ? 'Асцендент: ' + astro.SIGNS[Math.floor(day.natal.ascLon / 30)] + ' ' +
+      (day.natal.ascLon % 30).toFixed(1) + '° (целые знаковые дома)'
+    : 'Асцендент и дома не показаны: не указано время рождения.';
+
+  // Что впереди: завтра и послезавтра
+  [1, 2].forEach(function (offset, i) {
+    var fd = new Date(now.getTime() + offset * 86400e3);
+    fd.setHours(12, 0, 0, 0);
+    var fadv = astro.advice(astro.computeDay(p, fd));
+    document.getElementById('fwd' + offset).textContent =
+      (offset === 1 ? 'Завтра: ' : 'Послезавтра: ') + fadv.energy.emoji + ' ' +
+      fadv.energy.label + '. ' + fadv.mainLine
+        .replace(/^(Сегодня|День)[ ]+/, '')
+        .replace(/^./, function (c) { return c.toUpperCase(); });
+  });
 
   // фраза дня
   if (state.day !== todayKey()) { state.day = todayKey(); state.count = 0; }
@@ -873,14 +1197,27 @@ function fillList(id, arr) {
 }
 
 function showQuote(themeKey) {
-  var theme = QUOTE_THEMES[themeKey] || QUOTE_THEMES.mood;
+  var wishes = (state && state.profile && state.profile.wishes) ? state.profile.wishes : [];
+  var theme, label;
+  if (wishes.length) {
+    // фраза подбирается под цели, отмеченные в анкете: цели чередуются по дням
+    var active = WISHES.filter(function (w) { return wishes.indexOf(w.key) >= 0; });
+    var dayIdx = Math.floor(Date.now() / 86400e3);
+    var w = active[(dayIdx + state.count) % active.length];
+    theme = QUOTE_THEMES[w.theme] || QUOTE_THEMES.mood;
+    label = 'под твою цель: ' + w.label.toLowerCase();
+  } else {
+    theme = QUOTE_THEMES[themeKey] || QUOTE_THEMES.mood;
+    label = 'тема подобрана по дню: ' + theme.label;
+  }
   var startRng = mulberry32(Math.floor(Date.now() / 86400e3));
   var start = Math.floor(startRng() * theme.bank.length);
   var idx = (start + state.count) % theme.bank.length;
   document.getElementById('quote').textContent = '«' + theme.bank[idx] + '»';
   document.getElementById('quoteTheme').textContent =
-    'тема подобрана по дню: ' + theme.label + (state.count > 0 ? ' • фраза №' + (state.count + 1) : '');
+    label + (state.count > 0 ? ' • фраза №' + (state.count + 1) : '');
 }
+
 
 function renderGratitude(hour) {
   var card = document.getElementById('gratCard');
@@ -914,10 +1251,15 @@ CITIES.forEach(function (c) {
 });
 
 document.getElementById('openSettings').addEventListener('click', function () {
+  document.getElementById('setTitle').textContent = 'Данные рождения';
+  document.getElementById('saveSettings').textContent = 'Сохранить';
+  document.getElementById('closeSettings').style.display = '';
   document.getElementById('fName').value = state.profile.name;
   document.getElementById('fDate').value = state.profile.date;
-  document.getElementById('fTime').value = state.profile.time;
+  document.getElementById('fTime').value = state.profile.time || '';
   citySel.value = state.profile.city;
+  selWishes = (state.profile.wishes || []).slice();
+  renderWishChips();
   appEl.classList.add('hidden');
   setEl.classList.remove('hidden');
 });
@@ -926,15 +1268,32 @@ document.getElementById('closeSettings').addEventListener('click', function () {
   appEl.classList.remove('hidden');
 });
 document.getElementById('saveSettings').addEventListener('click', function () {
+  var nameVal = document.getElementById('fName').value.trim();
+  if (!nameVal) { // имя обязательно — оно на главном экране
+    document.getElementById('nameHint').style.display = '';
+    document.getElementById('fName').focus();
+    return;
+  }
+  document.getElementById('nameHint').style.display = 'none';
+  var date = document.getElementById('fDate').value;
+  if (!date) { document.getElementById('fDate').focus(); return; } // дата обязательна
   var city = CITIES.filter(function (c) { return c.n === citySel.value; })[0] || CITIES[0];
-  var date = document.getElementById('fDate').value || state.profile.date;
-  var time = document.getElementById('fTime').value || state.profile.time;
-  state.profile = {
-    name: document.getElementById('fName').value.trim() || 'Друг',
+  var time = document.getElementById('fTime').value || null; // время необязательно
+  var profile = {
+    name: nameVal,
     date: date, time: time,
-    city: city.n, lat: city.lat, lon: city.lon, tz: city.tz
+    city: city.n, lat: city.lat, lon: city.lon, tz: city.tz,
+    wishes: selWishes.slice()
   };
+  if (!state) {
+    state = { profile: profile, interval: 30, day: '', count: 0 };
+  } else {
+    state.profile = profile;
+  }
   saveStateObj(state);
+  document.getElementById('setTitle').textContent = 'Данные рождения';
+  document.getElementById('saveSettings').textContent = 'Сохранить';
+  document.getElementById('closeSettings').style.display = '';
   setEl.classList.add('hidden');
   appEl.classList.remove('hidden');
   render();
